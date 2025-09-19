@@ -246,8 +246,27 @@ def get_cena(message):
         bot.register_next_step_handler(message, get_cena)
 
 
-@bot.callback_query_handler(func=lambda call: not call.data.startswith("buy_"))
-def handle_callback(call):
+@bot.callback_query_handler(func=lambda call: True)
+def handle_all_callbacks(call):
+    try:
+        if call.data in ['shtn', 'shuz', 'remn', 'tishk', 'hudi', 'drugoe', 'akcii', 'nazad']:
+            handle_category_callback(call)
+        elif call.data.startswith("buy_"):
+            handle_buy(call)
+        elif call.data.startswith("choosecat_"):
+            confirm_deletion(call)
+        elif call.data.startswith("confirmdel_") or call.data == "canceldel":
+            process_deletion(call)
+        elif call.data in ["confirmdel_all", "canceldel_all"]:
+            process_full_deletion(call)
+        elif call.data.startswith("cat_"):
+            hand_cate(call)
+    except Exception as e:
+        print(f"Error in callback handler: {e}")
+        bot.answer_callback_query(call.id, "Произошла ошибка")
+
+
+def handle_category_callback(call):
     if call.data == 'shtn':
         send_shtani(call.message)
     elif call.data == 'shuz':
@@ -555,12 +574,13 @@ if __name__ == '__main__':
     # Удаляем предыдущие вебхуки
     bot.remove_webhook()
 
-    # Устанавливаем вебхук если указан URL
-    if WEBHOOK_URL:
+    # Проверяем режим запуска
+    if WEBHOOK_URL and not os.environ.get('DEBUG'):
+        # Режим вебхука для продакшена
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
         print("Webhook установлен")
         app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
     else:
-        # Локальный запуск без вебхука
-        print("Запуск в режиме polling")
-        bot.polling()
+        # Режим polling для разработки
+        print("Starting bot in polling mode...")
+        bot.polling(none_stop=True)
