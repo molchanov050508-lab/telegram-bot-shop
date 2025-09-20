@@ -5,10 +5,10 @@ import sqlite3
 import io
 from flask import Flask, request
 
-# Конфигурация через переменные окружения
-BOT_TOKEN = os.environ.get('BOT_TOKEN', '8300658638:AAHUCZ7A3ci-SMEZK_s_fM-amD1vHjjnCkE')
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = list(map(int, os.environ.get('ADMIN_IDS', '1717331690,1410156253,6635207675').split(',')))
-WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL')
+PORT = int(os.environ.get('PORT', 5000))
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -45,7 +45,8 @@ def webhook():
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return ''
-    return 'Invalid content type', 403
+    else:
+        return 'Invalid content type', 403
 
 
 @bot.message_handler(commands=['start'])
@@ -575,11 +576,11 @@ if __name__ == '__main__':
     bot.remove_webhook()
 
     # Проверяем режим запуска
-    if WEBHOOK_URL and not os.environ.get('DEBUG'):
+    if WEBHOOK_URL:
         # Режим вебхука для продакшена
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        print("Webhook установлен")
-        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+        print(f"Webhook установлен на {WEBHOOK_URL}/webhook")
+        app.run(host='0.0.0.0', port=PORT)
     else:
         # Режим polling для разработки
         print("Starting bot in polling mode...")
