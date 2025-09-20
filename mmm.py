@@ -554,7 +554,7 @@ def handle_text_confirmation(message):
             f"📧 Почта: {data['email']}\n\n"
             f"🔗 Пользователь: @{message.from_user.username or message.from_user.first_name}\n"
             f"🆔 ID: {message.from_user.id}"
-        )
+    )
 
         for admin_id in ADMIN_IDS:
             bot.send_message(admin_id, order_text)
