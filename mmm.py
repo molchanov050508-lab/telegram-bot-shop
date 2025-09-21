@@ -9,8 +9,6 @@ import time
 BOT_TOKEN = os.environ.get('BOT_TOKEN', '8300658638:AAHUCZ7A3ci-SMEZK_s_fM-amD1vHjjnCkE')
 ADMIN_IDS = list(map(int, os.environ.get('ADMIN_IDS', '1717331690,1410156253,6635207675').split(',')))
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
-PORT = int(os.environ.get('PORT', 10000))
-
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 user_data = {}
@@ -603,20 +601,34 @@ def handle_text_confirmation(message):
 if __name__ == '__main__':
     init_db()
     
-    
+    # Всегда удаляем вебхук перед запуском
     bot.remove_webhook()
     time.sleep(1)
     
-   
-    PORT = int(os.environ.get('PORT', 10000))
+    # Получаем порт от Render
+    port = int(os.environ.get('PORT', 5000))
     
-   
+    # Проверяем, запущен ли код на Render
     if os.environ.get('PORT') and WEBHOOK_URL:
-        
+        # Режим вебхука для продакшена на Render
         print("Starting in webhook mode...")
-        bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        print(f"Webhook установлен на {WEBHOOK_URL}/webhook")
-        app.run(host='0.0.0.0', port=PORT)
+        try:
+            bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+            print(f"Webhook установлен на {WEBHOOK_URL}/webhook")
+        except Exception as e:
+            print(f"Ошибка установки webhook: {e}")
     else:
+        # Режим polling для локальной разработки
         print("Starting in polling mode...")
-        bot.polling(none_stop=True, interval=1, timeout=30)
+        # Запускаем polling в отдельном потоке, чтобы не блокировать Flask
+        import threading
+        def start_polling():
+            bot.polling(none_stop=True, interval=1, timeout=30)
+        
+        polling_thread = threading.Thread(target=start_polling)
+        polling_thread.daemon = True
+        polling_thread.start()
+    
+    # ВСЕГДА запускаем Flask сервер на порту от Render
+    print(f"Starting Flask server on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
