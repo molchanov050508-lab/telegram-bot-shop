@@ -4,11 +4,12 @@ from telebot import types
 import sqlite3
 import io
 from flask import Flask, request
+import time
 
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '8300658638:AAHUCZ7A3ci-SMEZK_s_fM-amD1vHjjnCkE')
 ADMIN_IDS = list(map(int, os.environ.get('ADMIN_IDS', '1717331690,1410156253,6635207675').split(',')))
-WEBHOOK_URL = os.environ.get('WEBHOOK_URL')
-PORT = int(os.environ.get('PORT', 5000))
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
+PORT = int(os.environ.get('PORT', 10000))
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -40,13 +41,43 @@ def index():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    else:
+    try:
+        if request.headers.get('content-type') == 'application/json':
+            json_string = request.get_data().decode('utf-8')
+            update = telebot.types.Update.de_json(json_string)
+            bot.process_new_updates([update])
+            return 'OK', 200
         return 'Invalid content type', 403
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return 'Error', 500
+
+
+@app.route('/set_webhook', methods=['GET'])
+def set_webhook_manually():
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+        if WEBHOOK_URL:
+            success = bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+            return f"Webhook установлен: {success}"
+        return "WEBHOOK_URL не настроен"
+    except Exception as e:
+        return f"Ошибка: {e}"
+
+
+@app.route('/status')
+def status():
+    try:
+        webhook_info = bot.get_webhook_info()
+        return {
+            "status": "running",
+            "webhook_url": webhook_info.url,
+            "webhook_set": bool(webhook_info.url),
+            "pending_updates": webhook_info.pending_update_count
+        }
+    except:
+        return {"status": "running", "mode": "polling"}
 
 
 @bot.message_handler(commands=['start'])
@@ -554,7 +585,7 @@ def handle_text_confirmation(message):
             f"📧 Почта: {data['email']}\n\n"
             f"🔗 Пользователь: @{message.from_user.username or message.from_user.first_name}\n"
             f"🆔 ID: {message.from_user.id}"
-    )
+        )
 
         for admin_id in ADMIN_IDS:
             bot.send_message(admin_id, order_text)
@@ -571,17 +602,21 @@ def handle_text_confirmation(message):
 
 if __name__ == '__main__':
     init_db()
-
-    # Удаляем предыдущие вебхуки
+    
+    
     bot.remove_webhook()
-
-    # Проверяем режим запуска
-    if WEBHOOK_URL:
-        # Режим вебхука для продакшена
+    time.sleep(1)
+    
+   
+    PORT = int(os.environ.get('PORT', 10000))
+    
+   
+    if os.environ.get('PORT') and WEBHOOK_URL:
+        
+        print("Starting in webhook mode...")
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
         print(f"Webhook установлен на {WEBHOOK_URL}/webhook")
         app.run(host='0.0.0.0', port=PORT)
     else:
-        # Режим polling для разработки
-        print("Starting bot in polling mode...")
-        bot.polling(none_stop=True)
+        print("Starting in polling mode...")
+        bot.polling(none_stop=True, interval=1, timeout=30)
