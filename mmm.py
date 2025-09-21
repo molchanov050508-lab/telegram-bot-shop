@@ -601,34 +601,27 @@ def handle_text_confirmation(message):
 if __name__ == '__main__':
     init_db()
     
+    # Получаем порт от Render
+    port = int(os.environ.get('PORT', 5000))
+    
     # Всегда удаляем вебхук перед запуском
     bot.remove_webhook()
     time.sleep(1)
     
-    # Получаем порт от Render
-    port = int(os.environ.get('PORT', 5000))
-    
-    # Проверяем, запущен ли код на Render
-    if os.environ.get('PORT') and WEBHOOK_URL:
-        # Режим вебхука для продакшена на Render
-        print("Starting in webhook mode...")
+    # ЕСЛИ есть WEBHOOK_URL - используем ВЕБХУК
+    if WEBHOOK_URL:
+        print("Starting in WEBHOOK mode...")
         try:
             bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
             print(f"Webhook установлен на {WEBHOOK_URL}/webhook")
         except Exception as e:
             print(f"Ошибка установки webhook: {e}")
-    else:
-        # Режим polling для локальной разработки
-        print("Starting in polling mode...")
-        # Запускаем polling в отдельном потоке, чтобы не блокировать Flask
-        import threading
-        def start_polling():
-            bot.polling(none_stop=True, interval=1, timeout=30)
         
-        polling_thread = threading.Thread(target=start_polling)
-        polling_thread.daemon = True
-        polling_thread.start()
+        # Запускаем ТОЛЬКО Flask сервер для вебхука
+        app.run(host='0.0.0.0', port=port, debug=False)
     
-    # ВСЕГДА запускаем Flask сервер на порту от Render
-    print(f"Starting Flask server on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # ЕСЛИ нет WEBHOOK_URL - используем POLLING
+    else:
+        print("Starting in POLLING mode...")
+        # Запускаем ТОЛЬКО polling
+        bot.polling(none_stop=True, interval=1, timeout=30)
